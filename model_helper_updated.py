@@ -1,5 +1,7 @@
-# Note 1: Parameter has been adjusted to be compatible with a batch graph training
-# Note 2: Another layer has been added to perform k-hop (k = 2)
+'''
+model_helper_updated.py
+Containing the model of Graph Attention Network as a CS224W project By Kaya Guvendi, Daniel Lee, Gyu Kim
+'''
 
 import torch
 import torch.nn as nn
@@ -17,11 +19,9 @@ It contains additional features
 
 Note
     - Learnable weight initialization steps are included as part of GATv2Conv init.
-    - The detailed mathmatics for GAT is described at
+    - Used GATv2Conv as a backbone GAT implementation. The detailed mathmatics for GAT is described at
         https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GATv2Conv.html
         https://docs.dgl.ai/en/0.8.x/tutorials/models/1_gnn/9_gat.html
-        Every steps are performed at the backend over forward function of GATv2Conv
-
 '''
 class GATv2(nn.Module):
     def __init__(
@@ -97,28 +97,20 @@ class GATv2(nn.Module):
         score = self.gatv2_layers[-1](g, h).mean(1)
         return score
     
-    ### GAT2Conv testing ###
-    args = {
-        'num_layers': 2,
-        'input_dim': 7,
-        'num_hidden': 64, # hidden layer unit number
-        'num_heads': 2,
-        'out_dim': 2,
-        'in_drop': 0.3, # default: 0.7
-        'attn_drop': 0.5, # default: 0.7 
-        'negative_slope': 0.2, # default: 0.2
-        'residual': False # default
-    }
-    heads = ([args['num_heads']] * args['num_layers']) + [1]
-
-
 '''
 class GATLayer
 Below is the step-by-step GAT model implementation described at https://docs.dgl.ai/en/0.8.x/tutorials/models/1_gnn/9_gat.html
 
+GAT step-by-step
+    equation (1): Linear transformation of the lower layer embedding using learnable weight matrix
+    equation (2): Computing a pair-wise un-normalized attention score between two neighbors and applying leakyReLu
+    equation (3): Applying a softmax to normalize the attention scores on each node’s incoming edges
+    equation (4): The embeddings from neighbors are aggregated together, scaled by the attention scores
+
 Note
     - This was part of our original implementation of GAT
     - But this implementation doesn't have a way to do input or attention drop, so we switched over the GATv2Conv
+
 '''
 
 class GATLayer(nn.Module):
@@ -204,9 +196,9 @@ Note
 class GAT(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, num_heads, device='cuda'):
         super(GAT, self).__init__()
-        self.layer1 = MultiHeadGATLayer(in_dim, hidden_dim, num_heads)
-        self.layer2 = MultiHeadGATLayer(hidden_dim * num_heads, hidden_dim, num_heads)
-        self.layer3 = MultiHeadGATLayer(hidden_dim * num_heads, out_dim, 1)
+        self.layer1 = MultiHeadGATLayer(in_dim, hidden_dim, num_heads) # Input layer
+        self.layer2 = MultiHeadGATLayer(hidden_dim * num_heads, hidden_dim, num_heads) # Hidden layer
+        self.layer3 = MultiHeadGATLayer(hidden_dim * num_heads, out_dim, 1) # Output layer
         self.device = device
 
     def forward(self, g, h):
